@@ -1,6 +1,6 @@
+import { ATTACK, CARRY, ERR_NOT_IN_RANGE, HEAL, MOVE, RESOURCE_ENERGY } from "game/constants";
+import { Creep, StructureContainer, StructureSpawn } from "game/prototypes";
 import { findInRange, getObjectsByPrototype } from "game/utils";
-import { Creep, GameObject, Source, StructureContainer, StructureSpawn } from "game/prototypes";
-import { ATTACK, CARRY, ERR_NOT_IN_RANGE, HEAL, MOVE, RESOURCE_ENERGY, WORK } from "game/constants";
 
 declare module "game/prototypes" {
   interface Creep {
