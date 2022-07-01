@@ -6,6 +6,7 @@ import { findInRange, getObjectsByPrototype } from "game/utils";
 declare module "game/prototypes" {
   interface Creep {
     waitingForSquad: boolean;
+    role: string;
   }
 }
 
@@ -32,15 +33,19 @@ function spawnCreepLogic() {
     } else {
       // First choose what type of attacker we are spawning then spawn it
       let selectedBody: BodyPartConstant[];
+      let role: string;
       if (currentSquad.length < squadSize - 1) {
         selectedBody = [...attackCreepBody];
+        role = "grunt";
       } else {
         selectedBody = [...healCreepBody];
+        role = "healer";
       }
 
       const attackCreep = mySpawn.spawnCreep(selectedBody).object;
       if (attackCreep) {
         attackCreep.waitingForSquad = true;
+        attackCreep.role = role;
         currentSquad.push(attackCreep);
         spawnDelay = selectedBody.length * 3;
       }
@@ -104,7 +109,7 @@ function attack(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
   if (creep.waitingForSquad) {
     return;
   }
-  if (creep.body.some(bp => bp.type === HEAL)) {
+  if (creep.role === "healer") {
     const myDamagedCreeps = army.filter(i => i.hits < i.hitsMax);
     const healTarget = creep.findClosestByPath(myDamagedCreeps);
 
@@ -118,7 +123,7 @@ function attack(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
       if (closestAlly) creep.moveTo(closestAlly);
     }
   }
-  if (creep.body.some(bp => bp.type === ATTACK)) {
+  if (creep.role === "grunt") {
     const enemy = creep.findClosestByPath(enemies);
     if (enemy && creep.attack(enemy) === ERR_NOT_IN_RANGE) {
       creep.moveTo(enemy);
