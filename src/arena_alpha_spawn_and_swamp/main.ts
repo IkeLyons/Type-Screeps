@@ -1,7 +1,8 @@
-import { ATTACK, CARRY, ERR_NOT_IN_RANGE, HEAL, MOVE, RESOURCE_ENERGY } from "game/constants";
+import { ATTACK, BodyPartConstant, CARRY, ERR_NOT_IN_RANGE, HEAL, MOVE, RESOURCE_ENERGY } from "game/constants";
 import { Creep, StructureContainer, StructureSpawn } from "game/prototypes";
 import { findInRange, getObjectsByPrototype } from "game/utils";
 
+// Needed by TS to define the custom attribute we use overtop of the standard creep object
 declare module "game/prototypes" {
   interface Creep {
     waitingForSquad: boolean;
@@ -17,32 +18,31 @@ let enemySpawn: StructureSpawn | undefined;
 let spawnDelay = 0;
 const squadSize = 4;
 const workerCount = 3;
-const attackCreepBody = [MOVE, MOVE, MOVE, MOVE, ATTACK, ATTACK, ATTACK, ATTACK];
-const healCreepBody = [MOVE, MOVE, MOVE, HEAL, HEAL];
+const attackCreepBody: BodyPartConstant[] = [MOVE, MOVE, MOVE, MOVE, ATTACK, ATTACK, ATTACK, ATTACK];
+const healCreepBody: BodyPartConstant[] = [MOVE, MOVE, MOVE, HEAL, HEAL];
 
 function spawnCreepLogic() {
   if (mySpawn) {
     if (workers.length < workerCount) {
+      // Start off by spawning all the needed workers
       const newlySpawnedWorker: Creep | undefined = mySpawn.spawnCreep([MOVE, CARRY, MOVE]).object;
       if (newlySpawnedWorker) {
         workers.push(newlySpawnedWorker);
       }
     } else {
-      let attackCreep: Creep | undefined;
-      let typeCreated; // 0 - Attacker | 1 - Healer
+      // First choose what type of attacker we are spawning then spawn it
+      let selectedBody: BodyPartConstant[];
       if (currentSquad.length < squadSize - 1) {
-        attackCreep = mySpawn.spawnCreep(attackCreepBody).object;
-      } else if (currentSquad.length < squadSize) {
-        attackCreep = mySpawn.spawnCreep(healCreepBody).object;
+        selectedBody = [...attackCreepBody];
+      } else {
+        selectedBody = [...healCreepBody];
       }
+
+      const attackCreep = mySpawn.spawnCreep(selectedBody).object;
       if (attackCreep) {
         attackCreep.waitingForSquad = true;
         currentSquad.push(attackCreep);
-        if (typeCreated === 0) {
-          spawnDelay = attackCreepBody.length * 3;
-        } else if (typeCreated === 1) {
-          spawnDelay = healCreepBody.length * 3;
-        }
+        spawnDelay = selectedBody.length * 3;
       }
     }
   }
