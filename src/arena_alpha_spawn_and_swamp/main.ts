@@ -1,4 +1,13 @@
-import { ATTACK, BodyPartConstant, CARRY, ERR_NOT_IN_RANGE, HEAL, MOVE, RESOURCE_ENERGY } from "game/constants";
+import {
+  ATTACK,
+  BodyPartConstant,
+  CARRY,
+  ERR_NOT_IN_RANGE,
+  HEAL,
+  MOVE,
+  RANGED_ATTACK,
+  RESOURCE_ENERGY
+} from "game/constants";
 import { Creep, StructureContainer, StructureSpawn } from "game/prototypes";
 import { findInRange, getObjectsByPrototype } from "game/utils";
 
@@ -21,6 +30,7 @@ const squadSize = 4;
 const workerCount = 3;
 const attackCreepBody: BodyPartConstant[] = [MOVE, MOVE, MOVE, MOVE, ATTACK, ATTACK, ATTACK, ATTACK];
 const healCreepBody: BodyPartConstant[] = [MOVE, MOVE, MOVE, HEAL, HEAL];
+const kiterCreepBody: BodyPartConstant[] = [MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, HEAL, RANGED_ATTACK];
 
 function spawnCreepLogic() {
   if (mySpawn) {
@@ -41,6 +51,8 @@ function spawnCreepLogic() {
         selectedBody = [...healCreepBody];
         role = "healer";
       }
+      selectedBody = [...kiterCreepBody];
+      role = "kiter";
 
       const attackCreep = mySpawn.spawnCreep(selectedBody).object;
       if (attackCreep) {
@@ -108,6 +120,18 @@ function work(worker: Creep) {
 function attack(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
   if (creep.waitingForSquad) {
     return;
+  }
+  if (creep.role === "kiter") {
+    const targetsInRange = findInRange(creep, enemies, 3);
+    if (targetsInRange.length >= 3) {
+      creep.rangedMassAttack();
+    } else if (targetsInRange.length > 0) {
+      creep.rangedAttack(targetsInRange[0]);
+    } else {
+      const enemy = creep.findClosestByPath(enemies);
+      if (enemy) creep.moveTo(enemy);
+    }
+    creep.heal(creep);
   }
   if (creep.role === "healer") {
     const myDamagedCreeps = army.filter(i => i.hits < i.hitsMax);
