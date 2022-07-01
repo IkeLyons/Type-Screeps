@@ -23,9 +23,9 @@ const healCreepBody = [MOVE, MOVE, MOVE, HEAL, HEAL];
 function spawnCreepLogic() {
   if (mySpawn) {
     if (workers.length < workerCount) {
-      const worker: Creep | undefined = mySpawn.spawnCreep([MOVE, CARRY, MOVE]).object;
-      if (worker) {
-        workers.push(worker);
+      const newlySpawnedWorker: Creep | undefined = mySpawn.spawnCreep([MOVE, CARRY, MOVE]).object;
+      if (newlySpawnedWorker) {
+        workers.push(newlySpawnedWorker);
       }
     } else {
       let attackCreep: Creep | undefined;
@@ -86,49 +86,59 @@ function init() {
   }
 }
 
+function work(worker: Creep) {
+  if (worker.store.getFreeCapacity(RESOURCE_ENERGY)) {
+    const nonEmptyConts = containers.filter(c => c.store[RESOURCE_ENERGY] > 0);
+    const container = worker.findClosestByPath(nonEmptyConts);
+    if (container && worker.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+      worker.moveTo(container);
+    }
+  } else {
+    if (mySpawn && worker.transfer(mySpawn, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+      worker.moveTo(mySpawn);
+    }
+  }
+}
+
+function attack(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
+  if (creep.waitingForSquad) {
+    return;
+  }
+  if (creep.body.some(bp => bp.type === HEAL)) {
+    const myDamagedCreeps = army.filter(i => i.hits < i.hitsMax);
+    const healTarget = creep.findClosestByPath(myDamagedCreeps);
+
+    if (healTarget && creep.id !== healTarget.id) {
+      if (creep.heal(healTarget) === ERR_NOT_IN_RANGE) {
+        creep.moveTo(healTarget);
+      }
+      return;
+    } else if (!healTarget) {
+      const closestAlly = creep.findClosestByPath(army.filter(c => c.id !== creep.id));
+      if (closestAlly) creep.moveTo(closestAlly);
+    }
+  }
+  if (creep.body.some(bp => bp.type === ATTACK)) {
+    const enemy = creep.findClosestByPath(enemies);
+    if (enemy && creep.attack(enemy) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(enemy);
+    }
+  }
+}
+
 export function loop() {
   init();
 
-  for (const worker of workers) {
-    if (worker.store.getFreeCapacity(RESOURCE_ENERGY)) {
-      const nonEmptyConts = containers.filter(c => c.store[RESOURCE_ENERGY] > 0);
-      const container = worker.findClosestByPath(nonEmptyConts);
-      if (container && worker.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-        worker.moveTo(container);
-      }
-    } else {
-      if (mySpawn && worker.transfer(mySpawn, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-        worker.moveTo(mySpawn);
-      }
-    }
+  for (const creep of workers) {
+    work(creep);
   }
 
+  // Get all enemies but also push the spawn as an enemy so that the army will eventually target it
   const enemies: (StructureSpawn | Creep)[] = getObjectsByPrototype(Creep).filter(c => !c.my);
   if (enemySpawn) enemies.push(enemySpawn);
-  for (const creep of army) {
-    if (creep.waitingForSquad) {
-      continue;
-    }
-    if (creep.body.some(bp => bp.type === HEAL)) {
-      const myDamagedCreeps = army.filter(i => i.hits < i.hitsMax);
-      const healTarget = creep.findClosestByPath(myDamagedCreeps);
 
-      if (healTarget && creep.id !== healTarget.id) {
-        if (creep.heal(healTarget) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(healTarget);
-        }
-        continue;
-      } else if (!healTarget) {
-        const closestAlly = creep.findClosestByPath(army.filter(c => c.id !== creep.id));
-        if (closestAlly) creep.moveTo(closestAlly);
-      }
-    }
-    if (creep.body.some(bp => bp.type === ATTACK)) {
-      const enemy = creep.findClosestByPath(enemies);
-      if (enemy && creep.attack(enemy) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(enemy);
-      }
-    }
+  for (const creep of army) {
+    attack(creep, enemies);
   }
 
   spawnCreepLogic();
