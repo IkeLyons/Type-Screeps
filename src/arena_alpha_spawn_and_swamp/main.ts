@@ -118,40 +118,37 @@ function work(worker: Creep) {
 }
 
 function attack(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
-  if (creep.waitingForSquad) {
-    return;
+  const enemy = creep.findClosestByPath(enemies);
+  if (enemy && creep.attack(enemy) === ERR_NOT_IN_RANGE) {
+    creep.moveTo(enemy);
   }
-  if (creep.role === "kiter") {
-    const targetsInRange = findInRange(creep, enemies, 3);
-    if (targetsInRange.length >= 3) {
-      creep.rangedMassAttack();
-    } else if (targetsInRange.length > 0) {
-      creep.rangedAttack(targetsInRange[0]);
-    } else {
-      const enemy = creep.findClosestByPath(enemies);
-      if (enemy) creep.moveTo(enemy);
-    }
-    creep.heal(creep);
-  }
-  if (creep.role === "healer") {
-    const myDamagedCreeps = army.filter(i => i.hits < i.hitsMax);
-    const healTarget = creep.findClosestByPath(myDamagedCreeps);
+}
 
-    if (healTarget && creep.id !== healTarget.id) {
-      if (creep.heal(healTarget) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(healTarget);
-      }
-      return;
-    } else if (!healTarget) {
-      const closestAlly = creep.findClosestByPath(army.filter(c => c.id !== creep.id));
-      if (closestAlly) creep.moveTo(closestAlly);
-    }
-  }
-  if (creep.role === "grunt") {
+function kite(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
+  const targetsInRange = findInRange(creep, enemies, 3);
+  if (targetsInRange.length >= 3) {
+    creep.rangedMassAttack();
+  } else if (targetsInRange.length > 0) {
+    creep.rangedAttack(targetsInRange[0]);
+  } else {
     const enemy = creep.findClosestByPath(enemies);
-    if (enemy && creep.attack(enemy) === ERR_NOT_IN_RANGE) {
-      creep.moveTo(enemy);
+    if (enemy) creep.moveTo(enemy);
+  }
+  creep.heal(creep);
+}
+
+function heal(creep: Creep) {
+  const myDamagedCreeps = army.filter(i => i.hits < i.hitsMax);
+  const healTarget = creep.findClosestByPath(myDamagedCreeps);
+
+  if (healTarget && creep.id !== healTarget.id) {
+    if (creep.heal(healTarget) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(healTarget);
     }
+    return;
+  } else if (!healTarget) {
+    const closestAlly = creep.findClosestByPath(army.filter(c => c.id !== creep.id));
+    if (closestAlly) creep.moveTo(closestAlly);
   }
 }
 
@@ -167,7 +164,16 @@ export function loop() {
   if (enemySpawn) enemies.push(enemySpawn);
 
   for (const creep of army) {
-    attack(creep, enemies);
+    if (creep.waitingForSquad) {
+      return;
+    }
+    if (creep.role === "grunt") {
+      attack(creep, enemies);
+    } else if (creep.role === "healer") {
+      heal(creep);
+    } else if (creep.role === "kiter") {
+      kite(creep, enemies);
+    }
   }
 
   spawnCreepLogic();
