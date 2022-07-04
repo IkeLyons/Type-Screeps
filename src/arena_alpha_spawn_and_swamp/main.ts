@@ -126,10 +126,26 @@ function attack(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
 
 function kite(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
   const targetsInRange = findInRange(creep, enemies, 3);
-  if (targetsInRange.length >= 3) {
-    creep.rangedMassAttack();
-  } else if (targetsInRange.length > 0) {
+  // if (targetsInRange.length >= 3) {
+  //   creep.rangedMassAttack();
+  // } else
+  if (targetsInRange.length > 0) {
     creep.rangedAttack(targetsInRange[0]);
+
+    // Move away from the target that was just attacked
+    let nextX = creep.x;
+    let nextY = creep.y;
+    if (targetsInRange[0].x > creep.x) {
+      nextX = creep.x - 1;
+    } else if (targetsInRange[0].x < creep.x) {
+      nextX = creep.x + 1;
+    }
+    if (targetsInRange[0].y > creep.y) {
+      nextY = creep.y - 1;
+    } else if (targetsInRange[0].y < creep.y) {
+      nextY = creep.y + 1;
+    }
+    creep.moveTo({ x: nextX, y: nextY });
   } else {
     const enemy = creep.findClosestByPath(enemies);
     if (enemy) creep.moveTo(enemy);
@@ -165,7 +181,7 @@ export function loop() {
 
   for (const creep of army) {
     if (creep.waitingForSquad) {
-      return;
+      continue;
     }
     if (creep.role === "grunt") {
       attack(creep, enemies);
