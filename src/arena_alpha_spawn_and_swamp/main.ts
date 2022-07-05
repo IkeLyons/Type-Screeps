@@ -10,6 +10,7 @@ import {
 } from "game/constants";
 import { Creep, StructureContainer, StructureSpawn } from "game/prototypes";
 import { findInRange, getObjectsByPrototype } from "game/utils";
+import { searchPath } from "game/path-finder";
 
 // Needed by TS to define the custom attribute we use overtop of the standard creep object
 declare module "game/prototypes" {
@@ -30,7 +31,20 @@ const squadSize = 4;
 const workerCount = 3;
 const attackCreepBody: BodyPartConstant[] = [MOVE, MOVE, MOVE, MOVE, ATTACK, ATTACK, ATTACK, ATTACK];
 const healCreepBody: BodyPartConstant[] = [MOVE, MOVE, MOVE, HEAL, HEAL];
-const kiterCreepBody: BodyPartConstant[] = [MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, HEAL, RANGED_ATTACK];
+const kiterCreepBody: BodyPartConstant[] = [
+  MOVE,
+  MOVE,
+  MOVE,
+  MOVE,
+  MOVE,
+  MOVE,
+  MOVE,
+  MOVE,
+  MOVE,
+  MOVE,
+  HEAL,
+  RANGED_ATTACK
+];
 
 function spawnCreepLogic() {
   if (mySpawn) {
@@ -126,26 +140,18 @@ function attack(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
 
 function kite(creep: Creep, enemies: (StructureSpawn | Creep)[]) {
   const targetsInRange = findInRange(creep, enemies, 3);
-  // if (targetsInRange.length >= 3) {
-  //   creep.rangedMassAttack();
-  // } else
+
   if (targetsInRange.length > 0) {
     creep.rangedAttack(targetsInRange[0]);
 
-    // Move away from the target that was just attacked
-    let nextX = creep.x;
-    let nextY = creep.y;
-    if (targetsInRange[0].x > creep.x) {
-      nextX = creep.x - 1;
-    } else if (targetsInRange[0].x < creep.x) {
-      nextX = creep.x + 1;
-    }
-    if (targetsInRange[0].y > creep.y) {
-      nextY = creep.y - 1;
-    } else if (targetsInRange[0].y < creep.y) {
-      nextY = creep.y + 1;
-    }
-    creep.moveTo({ x: nextX, y: nextY });
+    const path = searchPath(
+      creep,
+      enemies.map(c => {
+        return { pos: { x: c.x, y: c.y }, range: 4 };
+      }),
+      { flee: true }
+    );
+    creep.moveTo(path.path[0]);
   } else {
     const enemy = creep.findClosestByPath(enemies);
     if (enemy) creep.moveTo(enemy);
